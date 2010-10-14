@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<PreferenceScreen 
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:key="soundcloud_wallpaper_settings" 
+	android:title="@string/wallpaper_settings">
+	<EditTextPreference 
+    	android:key="sc_user" 
+    	android:title="@string/user" 
+    	android:summary="@string/user_summary"/>
+	<ListPreference 
+		android:key="timer"
+		android:title="@string/time_between_pictures" 
+		android:summary="@string/time_between_pictures_summary"
+		android:entries="@array/time_between_pictures_entries"
+		android:entryValues="@array/time_between_pictures_values" />
+	<CheckBoxPreference android:key="scroll"
+		android:title="@string/scroll_pref" 
+		android:summaryOn="@string/scroll_pref_on"
+		android:summaryOff="@string/scroll_pref_off" 
+		android:defaultValue="true" />
+	<CheckBoxPreference 
+		android:key="stretching"
+		android:title="@string/stretching_pref" 
+		android:summaryOn="@string/stretching_pref_on"
+		android:summaryOff="@string/stretching_pref_off" 
+		android:defaultValue="false" />
+	<ListPreference 
+		android:key="transition" 
+		android:title="@string/transition_pref"
+		android:summary="@string/transition_pref_summary"
+		android:defaultValue="0" 
+		android:entries="@array/transition_choices_entries"
+		android:entryValues="@array/transition_choices_values" />
+	<CheckBoxPreference 
+		android:key="clickChangesWaveform"
+		android:title="@string/click_to_change_waveform_pref"
+		android:summaryOn="@string/click_to_change_waveform_pref_on"
+		android:summaryOff="@string/click_to_change_waveform_off"
+		android:defaultValue="false" />
+</PreferenceScreen>
