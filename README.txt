@@ -1,0 +1,1 @@
+Sample application sent to Android Developer Challenge.
