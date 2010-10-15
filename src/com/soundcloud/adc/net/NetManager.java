@@ -22,8 +22,6 @@ import org.apache.http.params.HttpProtocolParams;
 
 import android.util.Log;
 
-import com.soundcloud.adc.SoundcloudLiveWallpaper;
-
 
 /**
  * 
@@ -32,8 +30,8 @@ import com.soundcloud.adc.SoundcloudLiveWallpaper;
  */
 public class NetManager {
 	
-	// XML  --> http://api.soundcloud.com/tracks?consumer_key=63cjPD5nWyTU6ko5ia8jA&q=djquano
-	// JSON --> http://api.soundcloud.com/tracks.json?consumer_key=63cjPD5nWyTU6ko5ia8jA&q=djquano
+	// XML  --> http://api.soundcloud.com/tracks?consumer_key=J4D4ODBNeuHeXTQlbwUp3A&q=djquano
+	// JSON --> http://api.soundcloud.com/tracks.json?consumer_key=J4D4ODBNeuHeXTQlbwUp3A&q=djquano
 	
 	private static AbstractHttpClient httpClient;
 
@@ -43,7 +41,7 @@ public class NetManager {
 
     private static final String HTTP_USER_AGENT = "Android/Soundwaper";
 
-    private static final String TAG = SoundcloudLiveWallpaper.class.getSimpleName();
+    private static final String TAG = NetManager.class.getSimpleName();
 	
 	static {
         setupHttpClient();

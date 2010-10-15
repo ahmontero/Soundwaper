@@ -77,26 +77,60 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
 			public void run() {
 				(new Thread(){
 					public void run(){
-						if (SystemClock.elapsedRealtime() - mStartTime > mTimer) {
-							showNewImage();
-						}else {
-							mHandler.postDelayed(mSlideShow, mTimer - (SystemClock.elapsedRealtime() - mStartTime));
-						}
+						mHandler.removeCallbacks(mSlideShow);
+						mHandler.postDelayed(mSlideShow, mTimer);
+						
+						switch (mTransition) {
+							case Constants.Prefs.FADE_TRANSITION:
+								showNewImageWithFadeTransition(mCurrentBitmap, mCurrentAlpha);
+								break;
+							default:
+								showNewImage();
+								break;
+				}
 					}
 				}).start();
-				
+			}
+			
+			protected void showNewImage() {
+				if (isVisible()) {
+					Log.d(TAG, "Refreshing image...");
+					
+					Pair<Bitmap, Track> soundcloudResult = requestImageAndTrack();
+					
+					//cancelAnyNotifications();
+
+					mCurrentBitmap = soundcloudResult == null?BitmapFactory.decodeResource(getResources(), R.drawable.icon):soundcloudResult.first;
+
+					if (mCurrentBitmap == null) {
+						Log.e(TAG, "I'm not sure what went wrong but waveform could not be retrieved");
+						throw new IllegalStateException("Whoops! We had problems retrieving the waveform. Please try again.");
+					}
+
+					mCurrentTrack = soundcloudResult == null?null:soundcloudResult.second;
+
+					//mImageReady to false because it is necessary to resize the image
+					mImageReady = false;
+
+					drawBitmap(mCurrentBitmap);
+				}
+			}
+			
+			/**
+			 * Execute a fade transition. 
+			 */
+			private void showNewImageWithFadeTransition(Bitmap bitmap, int alpha) {
+				mCurrentAlpha = alpha;
+				mCurrentAlpha += 255 / 25;
+				if (mCurrentAlpha > 255) {
+					mCurrentAlpha = 255;
+				}
+				// Log.v(TAG, "alpha " + currentAlpha);
+				mImagePaint.setAlpha(mCurrentAlpha);
+				drawBitmap(bitmap);
 			}
 		};
-		
-		private final Runnable mSlideShowFade = new Runnable() {
-			public void run() {
-				(new Thread(){
-					public void run(){
-						showNewImageWithFadeTransition(mCurrentBitmap, mCurrentAlpha);
-					}
-				}).start();
-			}
-		 };
+	
 		 
 		 @Override
 		 public void onCreate(SurfaceHolder surfaceHolder) {
@@ -110,7 +144,7 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
 			mCurrentAlpha = 0;	
 			mImageReady = false;
 			
-			mCurrentBitmap =  BitmapFactory.decodeResource(getResources(), R.drawable.icon);
+			mCurrentBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.icon);
 			
 			mSurfaceFrame = getSurfaceHolder().getSurfaceFrame();	
 			
@@ -185,14 +219,12 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
 		@Override
 		public void onDestroy() {
 			super.onDestroy();
-			mHandler.removeCallbacks(mSlideShowFade);
 			mHandler.removeCallbacks(mSlideShow);
 		}
 
 		@Override
 		public void onSurfaceDestroyed(SurfaceHolder holder) {	
 			super.onSurfaceDestroyed(holder);
-			mHandler.removeCallbacks(mSlideShowFade);
 			mHandler.removeCallbacks(mSlideShow);		
 		}
 
@@ -211,7 +243,6 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
 			if (visible){
 				mHandler.post(mSlideShow);
 			} else {
-				mHandler.removeCallbacks(mSlideShowFade);
 				mHandler.removeCallbacks(mSlideShow);
 			}
 		}
@@ -334,7 +365,7 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
                 boolean tappingOpt = mPrefs.getBoolean(Constants.Prefs.CLICK_TO_CHANGE_KEY, mClickToChange);
 
                 if (tappingOpt) {
-                    showNewImage();
+                    mHandler.post(mSlideShow);
                 } else {
                     try {
                     	//Show track url
@@ -358,57 +389,22 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
 			super.onTouchEvent(event);
 		}
 
-		/**
-		 * Called whenever you want a new image. This will also post the message for when the next frame should be drawn
-		 */
-		protected void showNewImage() {
-			Log.d(TAG, "Refreshing image...");
-			
-			Pair<Bitmap, Track> soundcloudResult = requestImageAndTrack();
-			
-			//cancelAnyNotifications();
-
-			mCurrentBitmap = soundcloudResult.first;
-
-			if (mCurrentBitmap == null) {
-				Log.e(TAG, "I'm not sure what went wrong but waveform could not be retrieved");
-				throw new IllegalStateException("Whoops! We had problems retrieving the waveform. Please try again.");
-			}
-
-			mCurrentTrack = soundcloudResult.second;
-
-			//mImageReady to false because it is necessary to resize the image
-			mImageReady = false;
-
-			switch (mTransition) {
-				case Constants.Prefs.FADE_TRANSITION:
-					showNewImageWithFadeTransition(mCurrentBitmap, 0);
-					break;
-				default:
-					drawBitmap(mCurrentBitmap);
-					break;
-			}
-
-			mHandler.removeCallbacks(mSlideShow);
-
-			if (isVisible()) {
-				mHandler.postDelayed(mSlideShow, mTimer);
-			}
-		}
-		
-		private Pair<Bitmap, Track> requestImageAndTrack() {
-			Pair<Bitmap, Track> soundcloudResult = null;		
+		private Pair<Bitmap, Track> requestImageAndTrack() {		
 			ConnectivityManager mConnectivityManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
 			
 			//If we have Internet connection
-			if (mConnectivityManager.getActiveNetworkInfo().isConnected()) {
+			if (mConnectivityManager != null && mConnectivityManager.getActiveNetworkInfo() != null && mConnectivityManager.getActiveNetworkInfo().isConnected()) {
+				Log.d(TAG, "Device is connected to Internet");
 				String user = mPrefs.getString(Constants.Prefs.USER_KEY, Constants.Prefs.DEFAULT_USER);
-				soundcloudResult = mSoundcloudApi.retrieveImage(user);
+				return mSoundcloudApi.retrieveImage(user);
 			}else{
+				Log.d(TAG, "Device is NOT connected to Internet");
 				notifyNoInternet();
+				return null;
 			}
 			
-			return soundcloudResult;
+			/*String user = mPrefs.getString(Constants.Prefs.USER_KEY, Constants.Prefs.DEFAULT_USER);
+			return mSoundcloudApi.retrieveImage(user);*/
 		}
 		
 		private void notifyNoInternet() {
@@ -420,26 +416,7 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
             nm.notify(R.string.app_name, notif);
         }
 
-		/**
-		 * Execute a fade transition. 
-		 */
-		private void showNewImageWithFadeTransition(Bitmap bitmap, int alpha) {
-			mCurrentAlpha = alpha;
-			mCurrentAlpha += 255 / 25;
-			if (mCurrentAlpha > 255) {
-				mCurrentAlpha = 255;
-			}
-			// Log.v(TAG, "alpha " + currentAlpha);
-			mImagePaint.setAlpha(mCurrentAlpha);
-			drawBitmap(bitmap);
-
-			//remove old callback and draw new image
-			mHandler.removeCallbacks(mSlideShowFade);
-			
-			if (isVisible() && mCurrentAlpha < 255) {
-				mHandler.post(mSlideShowFade);
-			}
-		}
+		
 		
 		@Override
 		public void onSharedPreferenceChanged(SharedPreferences sharedPrefs, String keyChanged) {			

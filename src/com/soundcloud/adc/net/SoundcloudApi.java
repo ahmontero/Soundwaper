@@ -39,7 +39,7 @@ public class SoundcloudApi {
 	
 	public static final String API_ENDPOINT_URL = "http://api.soundcloud.com/tracks.json";
 
-    public static final String API_KEY = "63cjPD5nWyTU6ko5ia8jA";
+    public static final String API_KEY = "J4D4ODBNeuHeXTQlbwUp3A";
 
     private final NetManager netMgr = new NetManager();
     
