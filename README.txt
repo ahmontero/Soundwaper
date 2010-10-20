@@ -1,1 +1,1 @@
-Sample application sent to Android Developer Challenge.
+Live Wallpaper that allows you to put in your desktop a waveform from Soundcloud.
