@@ -1,4 +1,4 @@
-package com.soundcloud.adc;
+package com.siahmsoft.soundwaper;
 
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -6,7 +6,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
 
-/**
+/*
  * 
  * Settings for wallpaper that is inflated from 'soundcloud_settings.xml'
  *

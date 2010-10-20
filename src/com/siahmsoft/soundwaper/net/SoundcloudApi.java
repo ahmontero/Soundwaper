@@ -1,4 +1,4 @@
-package com.soundcloud.adc.net;
+package com.siahmsoft.soundwaper.net;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -24,9 +24,9 @@ import android.graphics.BitmapFactory;
 import android.util.Log;
 import android.util.Pair;
 
-import com.soundcloud.adc.cache.BitmapCache;
-import com.soundcloud.adc.cache.TracksCache;
-import com.soundcloud.adc.models.Track;
+import com.siahmsoft.soundwaper.cache.BitmapCache;
+import com.siahmsoft.soundwaper.cache.TracksCache;
+import com.siahmsoft.soundwaper.models.Track;
 
 /**
  * 

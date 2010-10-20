@@ -1,4 +1,4 @@
-package com.soundcloud.adc.cache;
+package com.siahmsoft.soundwaper.cache;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,7 +9,7 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.util.Pair;
 
-import com.soundcloud.adc.models.Track;
+import com.siahmsoft.soundwaper.models.Track;
 
 /**
  * 
