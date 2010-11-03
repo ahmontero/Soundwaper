@@ -2,7 +2,7 @@
 <manifest 
 	xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.siahmsoft.soundwaper"
-    android:versionCode="3" android:versionName="0.3">
+    android:versionCode="4" android:versionName="0.4">
 	
 	<uses-sdk android:minSdkVersion="7" />
     <uses-feature android:name="android.software.live_wallpaper" />
@@ -35,9 +35,9 @@
         </activity>
     </application>
     
-     <supports-screens
-		android:largeScreens="true"
-		android:normalScreens="true"
-		android:smallScreens="false"
-		android:anyDensity="true" />
+<!--     <supports-screens-->
+<!--		android:largeScreens="true"-->
+<!--		android:normalScreens="true"-->
+<!--		android:smallScreens="false"-->
+<!--		android:anyDensity="true" />-->
 </manifest> 

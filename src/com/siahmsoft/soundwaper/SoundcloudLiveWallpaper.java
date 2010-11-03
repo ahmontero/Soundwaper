@@ -8,18 +8,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
-import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.Typeface;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.SystemClock;
 import android.service.wallpaper.WallpaperService;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -32,11 +31,22 @@ import android.view.WindowManager;
 import com.siahmsoft.soundwaper.models.Track;
 import com.siahmsoft.soundwaper.net.SoundcloudApi;
 
-/**
- *
- * Soundcloud Wallpaper
- *
- */
+/*
+* Copyright (C) 2010 Siahmsoft
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
 public class SoundcloudLiveWallpaper extends WallpaperService {
 	private static final String TAG = SoundcloudLiveWallpaper.class.getSimpleName();
 
@@ -47,111 +57,46 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
 
 	class SoundcloudEngine extends Engine implements SharedPreferences.OnSharedPreferenceChangeListener {
 
-		private boolean mScroll;
-		private boolean mStretch;
-		private boolean mClickToChange;
-		private boolean mImageReady;
-
-		private int mXAxisPixelOffset;
-		private int mDesiredMinimumWidth;
-		private int mScreenHeight;
-		private int mScreenWidth;
-		private int mTransition;
-		private int mCurrentAlpha;
-		private long mTimer;
-		private long mStartTime;
-		private float mXOffset;
-		private float mXOffsetStep;
-
-		private Bitmap mCurrentBitmap;
-		private Paint mDefaultPaint;
-		private Paint mImagePaint;
-		private Rect mSurfaceFrame;
-		private SharedPreferences mPrefs;
 		private SoundcloudApi mSoundcloudApi;
-		private Track mCurrentTrack;
-
+		
+		private SharedPreferences mPrefs;
+		
+		private float mXOffset;
+        private boolean mVisible;
+        
+        private Bitmap mWaveform;
+        private Track mTrack;
+		
 		private final Handler mHandler = new Handler();
 
-		private final Runnable mSlideShow = new Runnable() {
+		private final Runnable fetchTrack = new Runnable() {
 			public void run() {
-				(new Thread(){
-					public void run(){
-						mHandler.removeCallbacks(mSlideShow);
-						mHandler.postDelayed(mSlideShow, mTimer);
-
-						switch (mTransition) {
-						case Constants.Prefs.FADE_TRANSITION:
-							showNewImageWithFadeTransition(mCurrentBitmap, mCurrentAlpha);
-							break;
-						default:
-							showNewImage();
-							break;
-						}
-					}
-				}).start();
-			}
-
-			protected void showNewImage() {
-				if (isVisible()) {
-					Log.d(TAG, "Refreshing image...");
-
-					Pair<Bitmap, Track> soundcloudResult = requestImageAndTrack();
-
-					//cancelAnyNotifications();
-
-					mCurrentBitmap = soundcloudResult == null?BitmapFactory.decodeResource(getResources(), R.drawable.icon):soundcloudResult.first;
-
-					if (mCurrentBitmap == null) {
-						Log.e(TAG, "I'm not sure what went wrong but waveform could not be retrieved");
-						throw new IllegalStateException("Whoops! We had problems retrieving the waveform. Please try again.");
-					}
-
-					mCurrentTrack = soundcloudResult == null?null:soundcloudResult.second;
-
-					//mImageReady to false because it is necessary to resize the image
-					mImageReady = false;
-
-					drawBitmap(mCurrentBitmap);
-				}
-			}
-
-			/**
-			 * Execute a fade transition.
-			 */
-			private void showNewImageWithFadeTransition(Bitmap bitmap, int alpha) {
-				mCurrentAlpha = alpha;
-				mCurrentAlpha += 255 / 25;
-				if (mCurrentAlpha > 255) {
-					mCurrentAlpha = 255;
-				}
-				// Log.v(TAG, "alpha " + currentAlpha);
-				mImagePaint.setAlpha(mCurrentAlpha);
-				drawBitmap(bitmap);
+				
+				mHandler.removeCallbacks(fetchTrack);
+				
+				fetchTrack();
+				drawImage();
+		            
+		        if (mVisible) {
+		        	mHandler.postDelayed(fetchTrack, mTimer);
+		        }
 			}
 		};
 
+		private Integer mTimer;
 
-		@Override
-		public void onCreate(SurfaceHolder surfaceHolder) {
-			super.onCreate(surfaceHolder);
-			initializeValues();
-			createPainters();
-			getScreenSize();
-		}
+		private boolean mShowTrackInfo;
+		private boolean mClickToChangeTrack;
 
-		private void initializeValues(){
-			mCurrentAlpha = 0;
-			mImageReady = false;
-
-			mCurrentBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.icon);
-
-			mSurfaceFrame = getSurfaceHolder().getSurfaceFrame();
-
+		private float mCenterX;
+		private float mCenterY;
+		
+		SoundcloudEngine(){
+			//mCurrentBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.icon);
 			mSoundcloudApi = new SoundcloudApi();
 
 			// register the listener to detect preference changes
-			mPrefs = getSharedPreferences(Constants.Prefs.NAME, MODE_PRIVATE);
+			mPrefs = SoundcloudLiveWallpaper.this.getSharedPreferences(Constants.Prefs.NAME, MODE_PRIVATE);
 			mPrefs.registerOnSharedPreferenceChangeListener(this);
 
 			// initialize the starting preferences
@@ -165,195 +110,155 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
 			}
 
 			updateSettings();
-
-			mDesiredMinimumWidth = getDesiredMinimumWidth();
-
-			mStartTime = SystemClock.elapsedRealtime();
 		}
+		
+		private void fetchTrack(){
 
-		private void updateSettings(){
-			mTimer = Integer.valueOf(mPrefs.getString(Constants.Prefs.TIMER_KEY, "5000"));
-			mScroll = mPrefs.getBoolean(Constants.Prefs.SCROLLING_KEY, true);
-			mStretch = mPrefs.getBoolean(Constants.Prefs.STRETCHING_KEY, false);
-			mClickToChange = mPrefs.getBoolean(Constants.Prefs.CLICK_TO_CHANGE_KEY, false);
-			mTransition = Integer.valueOf(mPrefs.getString(Constants.Prefs.TRANSITION_KEY, "0"));
-		}
+			if (isConnectedToInternet()) {
+				Log.d(TAG, "Device is connected to Internet...");
+				
+				String user = mPrefs.getString(Constants.Prefs.USER_KEY, Constants.Prefs.DEFAULT_USER);
+				
+				Log.d(TAG, "Fetching track...");
+				Pair<Bitmap, Track> soundcloudResult = mSoundcloudApi.retrieveImage(user);
+				
+				mWaveform = soundcloudResult.first == null?BitmapFactory.decodeResource(getResources(), R.drawable.icon):soundcloudResult.first;
+				mTrack = soundcloudResult.second;
 
-		private void createPainters(){
-			mImagePaint = new Paint();
-			mImagePaint.setAlpha(255);
-
-			if (mTransition != Constants.Prefs.FADE_TRANSITION) {
-				mImagePaint.setAlpha(255);
+				if (mWaveform == null || mTrack == null) {
+					Log.e(TAG, "I'm not sure what went wrong but waveform could not be retrieved");
+					throw new IllegalStateException("Whoops! We had problems retrieving the waveform. Please try again.");
+				}
+			}else{
+				Log.d(TAG, "Device is NOT connected to Internet");
+				notifyNoInternet();
+				//We will try to fetch tracks later
+				mHandler.postDelayed(fetchTrack, mTimer);
 			}
-
-			mDefaultPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-			mDefaultPaint.setTextAlign(Paint.Align.CENTER);
-			mDefaultPaint.setColor(Color.GRAY);
-			mDefaultPaint.setTextSize(24);
 		}
+		
+		private boolean isConnectedToInternet(){
+			ConnectivityManager mConnectivityManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+			return mConnectivityManager != null && mConnectivityManager.getActiveNetworkInfo() != null && mConnectivityManager.getActiveNetworkInfo().isConnected();
+		}
+		
+		protected void drawImage() {
+			if (isVisible()) {
+				Log.d(TAG, "Drawing image...");
 
-		private void getScreenSize() {
+				final SurfaceHolder holder = getSurfaceHolder();
+
+	            Canvas c = null;
+	            try {
+	                c = holder.lockCanvas();
+	                if (c != null) {
+	                	draw(c);    
+	                }
+	            } finally {
+	                if (c != null) holder.unlockCanvasAndPost(c);
+	            }
+			}
+		}
+		
+		private void draw(Canvas c){
+			
+			Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(Color.parseColor("#FF8C4A"));
+            paint.setTextAlign(Paint.Align.CENTER);
+            
+			c.drawBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.icon), mCenterX/2, mCenterY/2, paint);
+			
+            if(mWaveform != null){
+            	c.drawColor(Color.parseColor("#FF8C4A"));
+            	
+            	paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                paint.setColor(Color.GRAY);
+                paint.setTextAlign(Paint.Align.CENTER);
+                paint.setTextSize(15);
+                paint.setTypeface(Typeface.DEFAULT_BOLD);
+            	final Rect frame = getSurfaceHolder().getSurfaceFrame();
+            	
+            	/*Matrix matrix = new Matrix();
+                matrix.postScale(metrics.widthPixels/mWaveform.getWidth(), metrics.heightPixels/mWaveform.getHeight());
+                Bitmap b = Bitmap.createBitmap(mWaveform, 0, 0, mWaveform.getWidth(), mWaveform.getHeight(), matrix, true);*/
+                
+                c.drawBitmap(mWaveform, null, frame, paint);
+               
+                if(mShowTrackInfo){
+                	
+                	int y = 125;
+                    y -= paint.ascent() / 2;
+                    
+                    int left = (int) (mXOffset + (mWaveform.getWidth() - frame.width()) / 2);
+        			Rect window = new Rect((int) (frame.right + mXOffset), frame.top, left + frame.right, frame.bottom);
+                    
+                	String title = mTrack.getUser().getUsername() + " - " + mTrack.getTitle();
+                    String playbacks = "Playbacks: " + mTrack.getPlaybackCount();
+                    String favorites = "Favorites: " + mTrack.getFavoritingsCount();
+                    String comments = "Comments: " + mTrack.getCommentsCount();
+                    
+                	c.drawText(title, window.left + 25, 40, paint);
+                    
+                    c.drawText(playbacks, window.left + mXOffset + 50, y, paint);
+                    
+                    c.drawText(favorites, window.left + mXOffset + paint.measureText(playbacks) + 50, y, paint);
+                    
+                    c.drawText(comments, window.left + mXOffset + paint.measureText(playbacks) + paint.measureText(favorites) + 60, y, paint);
+                }
+            }else{
+            	mHandler.postDelayed(fetchTrack, mTimer);
+            }
+              
+		}
+		
+		private DisplayMetrics getScreenSize() {
 			DisplayMetrics metrics = new DisplayMetrics();
 			Display display = ((WindowManager) getSystemService(WINDOW_SERVICE)).getDefaultDisplay();
 			display.getMetrics(metrics);
+			
+			return metrics;
+		}
 
-			switch(getResources().getConfiguration().orientation){
-			case Configuration.ORIENTATION_LANDSCAPE:
-				this.mScreenWidth = metrics.heightPixels;
-				this.mScreenHeight = metrics.widthPixels;
-				break;
-
-			case Configuration.ORIENTATION_PORTRAIT:
-				this.mScreenHeight = metrics.heightPixels;
-				this.mScreenWidth = metrics.widthPixels;
-				break;
-
-			default:
-				this.mScreenHeight = metrics.heightPixels;
-				this.mScreenWidth = metrics.widthPixels;
-				break;
-			}
+		@Override
+		public void onCreate(SurfaceHolder surfaceHolder) {
+			super.onCreate(surfaceHolder);	
 		}
 
 		@Override
 		public void onDestroy() {
 			super.onDestroy();
-			mHandler.removeCallbacks(mSlideShow);
+			mHandler.removeCallbacks(fetchTrack);
 		}
 
 		@Override
 		public void onSurfaceDestroyed(SurfaceHolder holder) {
 			super.onSurfaceDestroyed(holder);
-			mHandler.removeCallbacks(mSlideShow);
+			mHandler.removeCallbacks(fetchTrack);
 		}
-
+		
+		@Override
+        public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            super.onSurfaceChanged(holder, format, width, height);
+            mCenterX = width/2.0f;
+            mCenterY = height/2.0f;
+            drawImage();
+		}
+		 
 		@Override
 		public void onOffsetsChanged(float xOffset, float yOffset, float xOffsetStep, float yOffsetStep, int xPixelOffset, int yPixelOffset) {
-			if (this.mXAxisPixelOffset != xPixelOffset * -1 || this.mXOffset != xOffset || this.mXOffsetStep != xOffsetStep) {
-				this.mXAxisPixelOffset = xPixelOffset * -1;
-				this.mXOffset = xOffset;
-				this.mXOffsetStep = xOffsetStep;
-				drawBitmap(mCurrentBitmap);
-			}
+			mXOffset = xPixelOffset;
+			drawImage();
 		}
 
 		@Override
 		public void onVisibilityChanged(boolean visible) {
-			if (visible){
-				mHandler.post(mSlideShow);
-			} else {
-				mHandler.removeCallbacks(mSlideShow);
-			}
-		}
-
-		/**
-		 * This happens on launcher rotation
-		 */
-		@Override
-		public void onDesiredSizeChanged(int desiredWidth, int desiredHeight) {
-			super.onDesiredSizeChanged(desiredWidth, desiredHeight);
-			Log.v(TAG, "onDesiredSizeChanged");
-			getScreenSize();
-			this.mDesiredMinimumWidth = desiredWidth;
-
-			drawBitmap(mCurrentBitmap);
-		}
-
-
-		/**
-		 * Draw the bitmap to the surface canvas
-		 *
-		 * @param bitmap the bitmap to draw
-		 */
-		private void drawBitmap(Bitmap bitmap) {
-			if (bitmap == null) {
-				Log.d(TAG, "Waveform bitmap is null! There is nothing to draw on canvas!");
-				return;
-			}
-
-			final SurfaceHolder holder = getSurfaceHolder();
-			int virtualWidth = mDesiredMinimumWidth;
-
-			if (mSurfaceFrame == null) {
-				Log.d(TAG, "surfaceFrame == null!");
-			}
-
-			Rect window;
-			Rect dstWindow = mSurfaceFrame;
-			if (!mScroll) {
-				// virtual width becomes screen width
-				virtualWidth = mScreenWidth;
-				mXAxisPixelOffset = 0;
-			}
-
-			// virtualWidth must be greater than 0
-			if (virtualWidth == 0) {
-				Log.d(TAG, "Can not draw bitmap because 'virtualWidth == 0'");
-				return;
-			}
-
-			int virtualHeight = mScreenHeight;
-
-			Log.d(TAG, "Waveform on screen dimensions: [Width:" + virtualWidth + "], [Height:" + virtualHeight + "]");
-
-			if (bitmap == mCurrentBitmap && !mImageReady) {
-
-				// scale the bitmap to fit the screen as well as possible
-				if (mStretch) {
-					Log.d(TAG, "Waveform dimensions: [Width:" + bitmap.getWidth() + "], [Height:" + bitmap.getHeight() + "]");
-					float scale = 0;
-					if (virtualHeight - bitmap.getHeight() < virtualWidth - bitmap.getWidth()) {
-						// vertically
-						scale = (float) virtualHeight / bitmap.getHeight();
-						Log.d(TAG, "Vertical scale: " + scale);
-					} else {
-						// horizontally
-						scale = (float) virtualWidth / bitmap.getWidth();
-						Log.d(TAG, "Horizontal scale: " + scale);
-					}
-
-					bitmap = BitmapHelper.scale(bitmap, scale);
-				}
-
-				mImageReady = true;
-				mCurrentBitmap = bitmap;
-			}
-
-			int vertMargin = (bitmap.getHeight() - virtualHeight) / 2;
-
-			if (bitmap.getWidth() >= virtualWidth && bitmap.getHeight() >= virtualHeight) {
-				int pictureHorizOffset = mXAxisPixelOffset + (bitmap.getWidth() - virtualWidth) / 2;
-				window = new Rect(pictureHorizOffset, vertMargin, pictureHorizOffset + mSurfaceFrame.right, bitmap.getHeight() - vertMargin);
-			} else {
-				int pictureHorizOffset = mXAxisPixelOffset + (bitmap.getWidth() - virtualWidth) / 2;
-
-				window = null;
-				dstWindow = new Rect(mSurfaceFrame);
-				dstWindow.top = -vertMargin;
-				dstWindow.bottom = bitmap.getHeight() - vertMargin;
-				dstWindow.left = -pictureHorizOffset;
-				dstWindow.right = -pictureHorizOffset + bitmap.getWidth();
-			}
-
-			Canvas c = null;
-			try {
-				c = holder.lockCanvas();
-				if (c != null && bitmap != null) {
-					c.drawColor(Color.parseColor("#FF8C4A")); //#FF8C4A FF9933
-					c.drawBitmap(bitmap, window, dstWindow, mImagePaint);
-
-					//It would be great if the text scrolls along the waveform.
-					//It is necessary a bit of googling
-					/*if(mCurrentTrack != null && mCurrentTrack.getUser() != null){
-						c.drawText((mCurrentTrack.getUser()).getUsername(), mScreenWidth/2, (mScreenHeight/2) - 50, mDefaultPaint);
-						c.drawText(mCurrentTrack.getTitle(), mScreenWidth/2, (mScreenHeight/2), mDefaultPaint);
-					}*/
-				}
-			} finally {
-				if (c != null)
-					holder.unlockCanvasAndPost(c);
-			}
+			mVisible = visible;
+            if (visible) {
+            	//mHandler.post(fetchTrack);
+            	drawImage();
+            } else {
+                mHandler.removeCallbacks(fetchTrack);
+            }
 		}
 
 		@Override
@@ -362,16 +267,16 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
 			Log.i(TAG, "An action going on" + action);
 			if (action.equals(WallpaperManager.COMMAND_TAP)) {
 
-				boolean tappingOpt = mPrefs.getBoolean(Constants.Prefs.CLICK_TO_CHANGE_KEY, mClickToChange);
-
-				if (tappingOpt) {
-					mHandler.post(mSlideShow);
+				updateSettings();
+				
+				if (mClickToChangeTrack) {
+					mHandler.post(fetchTrack);
 				} else {
 					try {
 						//Show track url
-						if(mCurrentTrack != null){
-							Log.i(TAG, "Browsing to track=[" + mCurrentTrack.getUrl() + "]");
-							intent = new Intent(Intent.ACTION_VIEW, Uri.parse(mCurrentTrack.getUrl()));
+						if(mTrack != null){
+							Log.i(TAG, "Browsing to track=[" + mTrack.getUrl() + "]");
+							intent = new Intent(Intent.ACTION_VIEW, Uri.parse(mTrack.getUrl()));
 							intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 							startActivity(intent);
 						}
@@ -389,24 +294,6 @@ public class SoundcloudLiveWallpaper extends WallpaperService {
 			super.onTouchEvent(event);
 		}
 
-		private Pair<Bitmap, Track> requestImageAndTrack() {
-			ConnectivityManager mConnectivityManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-
-			//If we have Internet connection
-			if (mConnectivityManager != null && mConnectivityManager.getActiveNetworkInfo() != null && mConnectivityManager.getActiveNetworkInfo().isConnected()) {
-				Log.d(TAG, "Device is connected to Internet");
-				String user = mPrefs.getString(Constants.Prefs.USER_KEY, Constants.Prefs.DEFAULT_USER);
-				return mSoundcloudApi.retrieveImage(user);
-			}else{
-				Log.d(TAG, "Device is NOT connected to Internet");
-				notifyNoInternet();
-				return null;
-			}
-
-			/*String user = mPrefs.getString(Constants.Prefs.USER_KEY, Constants.Prefs.DEFAULT_USER);
-return mSoundcloudApi.retrieveImage(user);*/
-		}
-
 		private void notifyNoInternet() {
 			NotificationManager nm = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 			Intent intent = new Intent();
@@ -416,16 +303,18 @@ return mSoundcloudApi.retrieveImage(user);*/
 			nm.notify(R.string.app_name, notif);
 		}
 
-
-
 		@Override
 		public void onSharedPreferenceChanged(SharedPreferences sharedPrefs, String keyChanged) {
-			if (keyChanged != null) {
-				Log.i(TAG, "Shared Preferences changed: " + keyChanged);
-				updateSettings();
-				//When the user changes the preferences,it is necessary to refresh the waveform
-				mHandler.post(mSlideShow);
-			}
+			Log.i(TAG, "Shared Preferences changed: " + keyChanged);
+			updateSettings();
+			//When the user changes the preferences,it is necessary to refresh the waveform
+			mHandler.post(fetchTrack);
+		}
+		
+		private void updateSettings(){
+			mTimer = Integer.valueOf(mPrefs.getString(Constants.Prefs.TIMER_KEY, "5000"));
+			mShowTrackInfo = mPrefs.getBoolean(Constants.Prefs.SHOW_TRACK_INFO_KEY, true);
+			mClickToChangeTrack = mPrefs.getBoolean(Constants.Prefs.CLICK_TO_CHANGE_KEY, true);
 		}
 	}
 } 

@@ -5,7 +5,7 @@
     <string name="wallpaper">Soundwaper</string>
     <string name="wallpaper_settings">Opciones</string>
     <string name="wallpaper_desc">Visualiza las formas de onda de las canciones de tu usuario favorito en Soundcloud</string>
-    <string name="wallpaper_author">Antonio H Montero</string>
+    <string name="wallpaper_author">Siahmsoft</string>
     
     <string name="notification_action">Descargando forma de onda</string>
     <string name="soundpaper_preference_1">Preferencias</string>
@@ -15,33 +15,16 @@
       
     <string name="time_between_pictures">Intervalo de refresco</string>
     <string name="time_between_pictures_summary">Refresca la imagen aleatoriamente cada cierto tiempo</string>
-    
-    <string name="scroll_pref">Scroll</string>
-    <string name="scroll_pref_on">Scroll de la imagen al cambiar de escritorio</string>
-    <string name="scroll_pref_off">Imagen fija</string>
-    
-    <string name="stretching_pref">Ajustar</string>
-    <string name="stretching_pref_on">Enmarca la forma de onda en la pantalla</string>
-    <string name="stretching_pref_off">Expande la forma de onda a pantalla completa</string>
-    
-    <string name="transition_pref">Trnsiciones</string>
-    <string name="transition_pref_summary">Activar transiciones</string>
 
     <string name="click_to_change_waveform_pref">Toque</string>
-    <string name="click_to_change_waveform_pref_on">Refrescar forma de onda al tocar</string>
-    <string name="click_to_change_waveform_off">Navegar a la página web de la canción</string> 
+    <string name="click_to_change_waveform_pref_on">Refrescar forma de onda</string>
+    <string name="click_to_change_waveform_pref_off">Navegar a la página web</string> 
     
-    <string name="network_not_available">Red no disponible</string> 
-        
-    <string-array name="transition_choices_entries">
-		<item>Fade</item>
-		<item>Ninguno</item>
-	</string-array>
-	
-	<string-array name="transition_choices_values">
-		<item>1</item>
-		<item>0</item>
-	</string-array>
+    <string name="network_not_available">Red no disponible</string>
+    
+    <string name="track_name">Mostrar info canción</string>
+    <string name="show_track_name">Mostrar nombre de artista y canción</string>
+    <string name="hide_track_name">Ocultar nombre de artista y canción</string>
 
 	<string-array name="time_between_pictures_entries">
 		<item>5s</item>

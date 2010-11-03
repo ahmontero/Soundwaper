@@ -14,28 +14,16 @@
 		android:summary="@string/time_between_pictures_summary"
 		android:entries="@array/time_between_pictures_entries"
 		android:entryValues="@array/time_between_pictures_values" />
-	<CheckBoxPreference android:key="scroll"
-		android:title="@string/scroll_pref" 
-		android:summaryOn="@string/scroll_pref_on"
-		android:summaryOff="@string/scroll_pref_off" 
+	<CheckBoxPreference 
+		android:key="showTrackName"
+		android:title="@string/track_name" 
+		android:summaryOn="@string/show_track_name"
+		android:summaryOff="@string/hide_track_name" 
 		android:defaultValue="true" />
 	<CheckBoxPreference 
-		android:key="stretching"
-		android:title="@string/stretching_pref" 
-		android:summaryOn="@string/stretching_pref_on"
-		android:summaryOff="@string/stretching_pref_off" 
-		android:defaultValue="false" />
-	<ListPreference 
-		android:key="transition" 
-		android:title="@string/transition_pref"
-		android:summary="@string/transition_pref_summary"
-		android:defaultValue="0" 
-		android:entries="@array/transition_choices_entries"
-		android:entryValues="@array/transition_choices_values" />
-	<CheckBoxPreference 
-		android:key="clickChangesWaveform"
+		android:key="clickToChangeWaveform"
 		android:title="@string/click_to_change_waveform_pref"
 		android:summaryOn="@string/click_to_change_waveform_pref_on"
-		android:summaryOff="@string/click_to_change_waveform_off"
-		android:defaultValue="false" />
+		android:summaryOff="@string/click_to_change_waveform_pref_off"
+		android:defaultValue="true" />
 </PreferenceScreen>
